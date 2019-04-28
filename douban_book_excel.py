@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 #coding = utf-8
 
-import os
-import re
-import time
-import requests
-import urllib.request
+import os, re, time, random, requests, urllib.request
 
 from bs4 import BeautifulSoup
 from lxml import etree, html
@@ -15,8 +11,14 @@ from xlwt import *
 URL = 'https://book.douban.com/tag/'
 # 每一个excel存储的数据量：TIMES * 20
 TIMES = 5
-# 伪装请求头
-HEADERS = { 'User-Agent': 'Mozilla/5.0' }
+# 防止封IP策略之一
+# 伪装User-Agent，装作是浏览器请求，每次爬取时换一个请求头
+USER_AGENTS = [
+	'Opera/9.80 (Windows NT 6.1; U; en) Presto/2.8.131 Version/11.11',
+	'Mozilla/5.0 (Windows NT 6.1; rv:2.0.1) Gecko/20100101 Firefox/4.0.1',
+	'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36',
+	'Mozilla/5.0 (Windows; U; Windows NT 6.1; en-us) AppleWebKit/534.50 (KHTML, like Gecko) Version/5.1 Safari/534.50'
+]
 # 存储路径
 FOLDER_PATH = './books/'
 # 表头
@@ -24,15 +26,17 @@ TABLE_HEADER = ['序号', '书名', '评分', '评价人数', '作者', '出版�
 
 # 获取全部标签
 def getTags():
-	res  = requests.get(URL, headers = HEADERS)
+	headers = { 'User-Agent': random.choice(USER_AGENTS) }
+	res  = requests.get(URL, headers = headers)
 	tree = etree.HTML(res.text)
 	tags = tree.xpath('//table[@class="tagCol"]//a/text()')
 	return tags
 
 # 获取表格数据
 def getTableData(tag, index):
+	headers  = { 'User-Agent': random.choice(USER_AGENTS) }
 	params   = { 'start': index, 'type': 'T' }
-	res      = requests.get(URL + tag, params = params, headers = HEADERS)
+	res      = requests.get(URL + tag, params = params, headers = headers)
 	tree     = etree.HTML(res.text)
 	bookList = tree.xpath('//li[@class="subject-item"]')
 
@@ -119,7 +123,7 @@ def saveToExcel(tableData, fileName):
 			table.write(rowIndex + 1, colIndex, colItem, style['content_style'])
 
 	file.save(FOLDER_PATH + fileName + '.xls')
-	print('\n========== %s 表格数据写入完毕==========\n' % fileName)
+	print('\n==========%s 表格数据写入完毕==========\n' % fileName)
 
 # 获取表格样式
 def getTableStyle(table):
@@ -170,20 +174,19 @@ def getBooks(tag, maxTimes):
 			books = books
 		times = times + 1
 		index = index + 20
+		print('\n==========休眠==========\n')
+		# 防止封IP策略之一
+		time.sleep(random.choice([1, 2, 3])) # 每次爬取之间暂停时间
 
-	print('\n========== %s 书籍获取完毕==========\n' % tag)
+	print('\n==========%s 书籍获取完毕==========\n' % tag)
 	return books
 
-
-
+# 执行
 tags = getTags()
-# for tag in tags:
-# 	bookList = getBooks(tag, TIMES)
-# 	saveToExcel(bookList, tag)
-print(tags)
-
-# bookList = getBooks('外国文学', TIMES)
-# saveToExcel(bookList, '外国文学')
+# print(tags)
+for tag in tags:
+	bookList = getBooks(tag, TIMES)
+	saveToExcel(bookList, tag)
 
 
 
